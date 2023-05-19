@@ -176,6 +176,32 @@ Where P.payment_type = 'credit_card'
 GROUP BY Estado
 Order BY Pedidos_Totais Desc;
 
+## selecionar os dez clientes que mais gastam
+
+select Cliente.customer_id as Id_cliente,
+Sum (Pagamentos.payment_value) as Valor
+from `olist_customer.customers` as Cliente
+Inner Join `olist_orders.orders` as Orders
+on Cliente.customer_id = Orders.customer_id
+Inner Join `olist_order_payment.order_payments`as Pagamentos
+on Orders.order_id = Pagamentos.order_id
+GROUP BY Id_cliente
+Order by Valor DESC
+Limit 10;
+
+#selecionar os estados que mais compram em valor
+
+select Cliente.customer_state as Estado,
+Sum (Pagamentos.payment_value) as Valor
+from `olist_customer.customers`as Cliente
+Inner Join `olist_orders.orders`as Pedidos
+on Cliente.customer_id = Pedidos.customer_id
+INNER JOIN `olist_order_payment.order_payments`as Pagamentos
+on Pedidos.order_id = Pagamentos.order_id
+Group By Estado
+Order By Valor DESC
+
+
 # 5. funções com string
 
 SELECT customer_id, CONCAT(customer_city, '-', customer_state) as Cidade_UF
@@ -221,3 +247,108 @@ SELECT order_id, product_id,
 FROM `olist_orders.orders` as O
 where O.order_id = I.order_id ) as Qtd
 FROM `olist_order_item.order_items` as I;
+
+# 8. EXERCÍCIOS AWARI
+
+# retorne todos os pagamentos do cliente, com suas datas de aprovação, valor da compra e o valor total que o cliente já gastou em todas as suas compras, mostrando somente os clientes onde o valor da compra é diferente do valor total já gasto;
+
+SELECT 
+* FROM 
+(
+  SELECT
+  Orders.customer_id as Id_cliente,
+  Pagamento.payment_value as Valor_compra,
+  Orders.order_approved_at as Data_aprovacao,
+    SUM (Pagamento.payment_value) OVER (PARTITION BY Orders.customer_id ORDER BY Pagamento.payment_value) as cum,
+  SUM (Pagamento.payment_value) OVER (PARTITION BY Orders.customer_id) AS Valor_total
+FROM `olist_orders.orders` as Orders
+INNER JOIN `olist_order_payment.order_payments`as Pagamento
+ON Orders.order_id = Pagamento.order_id
+)
+WHERE Valor_compra < Valor_total
+Order BY Id_cliente;
+
+
+
+#2 retorne as categorias válidas, suas somas totais dos valores de vendas, um ranqueamento de maior valor para menor valor junto com o somatório acumulado dos valores pela mesma regra do ranqueamento;
+
+SELECT 
+  Categoria,
+  Vendas_totais,
+  SUM (Vendas_totais) OVER (ORDER BY Vendas_totais) AS cum
+FROM
+ ( 
+   SELECT
+   Produtos.product_category_name as Categoria,
+   SUM (Pagamentos.payment_value) as Vendas_totais
+   FROM `olist_order_payment.order_payments` as Pagamentos
+   INNER JOIN `olist_order_item.order_items` as Items
+   ON Pagamentos.order_id = Items.order_id
+   INNER JOIN `olist_products.products` as Produtos
+   ON Items.product_id = Produtos.product_id
+   WHERE Produtos.product_category_name IS NOT NULL
+   GROUP BY 1
+   )
+ORDER BY 2 DESC;
+
+
+# crie uma view (SELLER_STATS) para mostrar por fornecedor, a quantidade de itens enviados, o tempo médio de postagem após a aprovação da compra, a quantidade total de pedidos de cada Fornecedor, note que trabalharemos na mesma query com 2 granularidades diferentes;
+
+
+CREATE VIEW SELLER_STATS
+SELECT 
+S.seller_id AS Id_vendedor,
+COUNT(D.order_status) AS Qtd_Itens,
+CASE
+WHEN D.order_satus = 'delivered' OR D.order_status = 'shipped' THEN 'Enviado'
+Else 'Não Enviado'
+END AS STATUS,
+SUM (COUNT (D.order_status)) OVER (PARTITION BY S.seller_id) AS VENDA_TOTAL_VENDEDOR, 
+AVG(DATE_DIFF(D.order_delivered_carrier_date, D.order_approved_as, DAY)) AS MEDIA_POSTAGEM
+FROM `olist_sellers.sellers` S
+INNER JOIN `olist_order_item.order_items` as O
+ON O.seller_id = S.seller_id
+INNER JOIN `olist_orders.orders` D
+ON D.order_id = O.order_id
+GROUP BY Status, Vendedor
+ORDER BY 1;
+
+# queremos dar um cupom de 10% do valor da última compra do cliente. Porém os clientes elegíveis a este cupom devem ter feito uma compra anterior a última (a partir da data de aprovação do pedido) que tenha sido maior ou igual o valor da última compra. Crie uma query que retorne os valores dos cupons para cada um dos clientes elegíveis;
+SELECT
+  CLIENTE,
+  PENULTIMA_COMPRA,
+  ULTIMA_COMPRA,
+  CASE
+    WHEN PENULTIMA_COMPRA >= ULTIMA_COMPRA THEN ROUND (ULTIMA_COMPRA * 0.10,2)
+    ELSE 0
+  END CUPOM
+FROM
+  (
+    select 
+      P.order_id AS PEDIDO,
+      C.customer_unique_id AS CLIENTE,
+      D.order_status AS STATUS,
+      DATE(D.order_approved_at) AS DATA_APROVACAO,
+      SUM (P.payment_value) AS VALOR_COMPRA,
+    last_value (P.payment_value) over (PARTITION by C.customer_unique_id ORDER BY DATE(D.order_approved_at)) AS ULTIMA_COMPRA,
+      LAG (P.payment_value) OVER (PARTITION BY C.customer_unique_id ORDER BY DATE(order_approved_at)) AS PENULTIMA_COMPRA
+    from `awari-data-analytics-2023.dataset_olist.orders` D
+   INNER JOIN `awari-data-analytics-2023.dataset_olist.order_payments` P 
+   ON P.order_id = D.order_id
+   INNER JOIN `awari-data-analytics-2023.dataset_olist.customers` C 
+   ON C.customer_id = D.customer_id
+   WHERE D.order_status = 'delivered' 
+   and D.order_approved_at IS NOT NULL
+   GROUP BY 1, 2, 3, 4, P.payment_value, D.order_approved_at
+  )
+WHERE PENULTIMA_COMPRA IS NOT NULL
+
+# Com base na tabela PRODUCE abaixo, obtenha o item mais popular em cada categoria (o que aparece mais vezes):
+
+
+SELECT 
+item, 
+purchases, 
+category, 
+LAST_VALUE(item) OVER (PARTITION BY category ORDER BY purchases ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular
+FROM `awari-data-analytics-2023.dataset_window_functions.produce`;
