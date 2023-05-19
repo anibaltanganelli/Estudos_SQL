@@ -1,0 +1,223 @@
+#PRÁTICA EXECUTADA NO BIGQUERY COM A BASE DE DADOS OLIST 
+
+#1. Where, Operadores, wildcards, aritmetica
+
+SELECT 
+seller_id,
+freight_value
+FROM `olist_order_item.order_items`
+WHERE freight_value = 12;
+
+SELECT 
+seller_id,
+freight_value
+FROM `olist_order_item.order_items`
+WHERE freight_value <> 12;
+
+SELECT 
+seller_id,
+freight_value
+FROM `olist_order_item.order_items`
+WHERE freight_value between 11 and 12;
+
+SELECT 
+seller_id,
+freight_value
+FROM `olist_order_item.order_items`
+WHERE freight_value IN (9, 11);
+
+SELECT 
+seller_id,
+price,
+freight_value
+FROM `olist_order_item.order_items`
+WHERE freight_value >= 20
+AND price < 10
+ORDER BY price ASC;
+
+SELECT * FROM `olist_order_item.order_items`
+WHERE price in (6, 9)
+OR freight_value > 20 and seller_id LIKE '1%';
+
+SELECT * FROM `olist_products.products`
+WHERE product_category_name like 'b%';
+
+SELECT * FROM `olist_products.products`
+WHERE product_category_name like 'casa%';
+
+SELECT * FROM `olist_products.products`
+WHERE product_category_name like '%saude';
+
+SELECT * FROM `olist_products.products`
+WHERE product_category_name like '_a%';
+
+SELECT * FROM `olist_products.products`
+WHERE product_category_name like 'casa_%';
+
+SELECT product_id, seller_id, price as preco_anterior, price * 1.17 as preco_atualizado, freight_value + 2 as frete_atualizado, 'atualizado' as situacao
+FROM `olist_order_item.order_items`;
+
+SELECT *,
+price * 1.11 as preco_atual
+FROM `olist_order_item.order_items`;
+
+SELECT *,
+ROUND(price * 1.11, 2) as preco_atual
+FROM `olist_order_item.order_items`
+WHERE price < 3;
+
+# 2. case when
+
+SELECT 
+order_approved_at,
+order_status,
+CASE
+  when order_status = 'shipped' then 'entregue'
+  else 'não entregue'
+END Entrega
+FROM `olist_orders.orders`;
+
+SELECT
+payment_value,
+payment_type,
+CASE
+  when payment_type = 'credit_card' then 'taxa_de_cartão'
+  when payment_type = 'boleto' then 'taxa_banco'
+  else 'buscar_valor'
+END Taxas
+from `olist_order_payment.order_payments`;
+
+SELECT 
+product_category_name,
+product_weight_g,
+CASE
+  when product_weight_g >= 500 then 'cobrar frete'
+  when product_weight_g between 300 and 499 then 'opção do vendedor'
+  else 'gratuito'
+END Frete
+FROM `olist_products.products`;
+
+SELECT
+product_id, seller_id,price, freight_value,
+CASE 
+  WHEN freight_value > price then 'oferecer_alternativas'
+  WHEN freight_value < price then 'aceitável' 
+  else 'ok' 
+END estudo_frete
+FROM `olist_order_item.order_items`;
+
+SELECT
+customer_city, customer_state, customer_id,
+CASE
+  WHEN customer_city = 'São Paulo' THEN 'frete grátis'
+  WHEN customer_state = 'MG' THEN 'desconto de 30%'
+  ELSE 'Calcule seu frete'
+END Frete
+From `olist_customer.customers`;
+
+SELECT
+customer_city, customer_state, customer_id,
+CASE
+  WHEN customer_city = 'São Paulo' THEN 'frete grátis'
+  WHEN customer_state = 'MG' THEN 'desconto de 30%'
+  ELSE 'Calcule seu frete'
+END Frete
+From `olist_customer.customers`;
+
+SELECT 
+O.order_id,
+O.order_purchase_timestamp, 
+I.price,
+CASE
+  WHEN order_purchase_timestamp < '2017-11-25' AND order_purchase_timestamp > '2017-04-06' THEN I.price - (I.price*0.1)
+  ELSE I.price
+
+END Preco
+FROM `olist_orders.orders`as O
+FULL OUTER JOIN `olist_order_item.order_items` as I
+ON O.order_id = I.order_id;
+
+# 3. if
+
+SELECT
+product_id, price,
+if (price > 1000, price - (price*0.1), price) as promocao
+FROM `olist_order_item.order_items`
+order by price DESC;
+
+SELECT
+product_id, price,
+if (price > 1000, price - (price*0.1), price) as promocao
+FROM `olist_order_item.order_items`
+order by price DESC;
+
+SELECT
+product_category_name,
+if (product_category_name = 'moveis_decoracao' or product_category_name = 'utilidades_domesticas' or product_category_name = 'moveis_quarto', 'grupo casa', 'outros') as agrupamento
+FROM `olist_products.products`;
+
+SELECT *,
+IF (customer_city = "São Paulo", "frete grátis", 'calcule seu frete') as Frete
+FROM `olist_customer.customers`;
+
+
+# 4. join
+
+SELECT
+ 
+C.customer_state as Estado,
+Count(P.order_id) as Pedidos_Totais
+from `olist_order_payment.order_payments`P
+Inner Join `olist_orders.orders`O
+On P.order_id = O.order_id
+Inner Join `olist_customer.customers`C
+On O.customer_id = C.customer_id
+Where P.payment_type = 'credit_card'
+GROUP BY Estado
+Order BY Pedidos_Totais Desc;
+
+# 5. funções com string
+
+SELECT customer_id, CONCAT(customer_city, '-', customer_state) as Cidade_UF
+FROM `olist_customer.customers`;
+
+SELECT product_category_name,
+LENGTH(product_category_name) as quantidade_letras,
+FROM `olist_products.products`
+GROUP BY product_category_name
+ORDER BY quantidade_letras DESC;
+
+SELECT product_id, 
+IF (product_weight_g > 500, UPPER(product_category_name), LOWER(product_category_name)) as product_category_name
+FROM `olist_products.products`;
+
+SELECT RPAD(product_category_name, 30, '2023') as codigo
+from `olist_products.products`;
+
+SELECT LPAD(product_id, 36, '2023') as codigo
+from `olist_products.products`;
+
+SELECT product_category_name, left(product_category_name, 5) as esquerda5, right(product_category_name, 3) as direita_3
+FROM `olist_products.products`;
+
+SELECT product_category_name, replace(product_category_name, 'telefonia_fixa', 'tel_fixo')
+FROM `olist_products.products`;
+
+# 6. funções de agregação
+
+SELECT COUNT(customer_id)
+from `olist_customer.customers`;
+
+SELECT COUNT(DISTINCT price)
+from `olist_order_item.order_items`;
+
+SELECT ROUND(AVG(price),2) as preco_medio
+from `olist_order_item.order_items`;
+
+#7. SUBQUERY
+
+SELECT order_id, product_id,
+(SELECT COUNT(*)
+FROM `olist_orders.orders` as O
+where O.order_id = I.order_id ) as Qtd
+FROM `olist_order_item.order_items` as I;
