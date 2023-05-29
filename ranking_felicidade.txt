@@ -1,0 +1,104 @@
+Estudo realizado com dados 'World Happiness Report' (2018/2019) do KAGGLE
+
+
+
+##Classificando por ranking geral
+SELECT
+Overall_rank,
+Country_or_region,
+Score
+FROM felicidade.2018
+GROUP BY Country_or_region, Overall_rank, Score
+ORDER BY Overall_rank ASC;
+
+## Classificação primeiros 20
+
+SELECT *
+FROM felicidade.2018
+ORDER BY Overall_rank ASC
+LIMIT 20;
+
+
+SELECT
+Overall_rank,
+Country_or_region,
+Score
+FROM felicidade.2018
+GROUP BY Country_or_region, Overall_rank, Score
+ORDER BY Overall_rank ASC
+LIMIT 20;
+
+##Classificação últimos 20
+SELECT
+Overall_rank,
+Country_or_region,
+Score
+FROM felicidade.2018
+GROUP BY Country_or_region, Overall_rank, Score
+ORDER BY Overall_rank DESC
+LIMIT 20;
+
+SELECT *
+FROM felicidade.2018
+ORDER BY Overall_rank DESC
+LIMIT 20;
+
+##cálculos com GDP_per_capita
+SELECT
+AVG(GDP_per_capita) AS Media_GDP,
+MIN(GDP_per_capita) AS Min_GDP,
+MAX(GDP_per_capita) AS Max_GDP,
+FROM felicidade.2018;
+
+
+#Selecionar paises que possuem GDP acima da média 
+SELECT
+Country_or_region,
+GDP_per_capita
+FROM felicidade.2018
+WHERE GDP_per_capita > (SELECT AVG(GDP_per_capita) FROM felicidade.2018)
+GROUP BY Country_or_region, GDP_per_capita;
+
+#Evolução ranking_geral global 2018 e 2019
+SELECT
+A18.Country_or_region AS PAIS,
+A18.Overall_rank AS Rank_2018,
+A19.Overall_rank AS Rank_2019,
+A19.Overall_rank - A18.Overall_rank AS evolucao
+FROM felicidade.2018 AS A18
+INNER JOIN felicidade.2019 AS A19
+ON A18.Country_or_region = A19.Country_or_region
+ORDER BY A19.Overall_RANK;
+
+#Evolução ranking_geral Brasil 2018 e 2019
+SELECT
+A18.Country_or_region AS PAIS,
+A18.Overall_rank AS Rank_2018,
+A19.Overall_rank AS Rank_2019,
+A19.Overall_rank - A18.Overall_rank AS evolucao
+FROM felicidade.2018 AS A18
+INNER JOIN felicidade.2019 AS A19
+ON A18.Country_or_region = A19.Country_or_region
+WHERE A18.Country_or_region = 'Brazil';
+
+#Evolução todos os critérios Brasil
+SELECT
+A18.Country_or_region,
+A19.Overall_rank - A18.Overall_rank AS ranking_geral, 
+A19.Score - A18.Score AS pontuacao,
+A19.GDP_per_capita - A18.GDP_per_capita AS gdp,
+A19.Social_support - A18.Social_support AS suporte_social, 
+A19.Healthy_life_expectancy - A18.Healthy_life_expectancy AS expectativa_vida,
+A19.Freedom_to_make_life_choices - A18.Freedom_to_make_life_choices AS liberdade_escolhas,
+A19.Generosity - A18.Generosity AS generosidade,
+A19.Perceptions_of_corruption - A18.Perceptions_of_corruption AS percepcao_corrupcao
+FROM felicidade.2018 AS A18
+INNER JOIN felicidade.2019 AS A19
+ON A18.Country_or_region = A19.Country_or_region
+WHERE A18.Country_or_region = 'Brazil';
+
+## Comprar india e brasil
+SELECT * 
+FROM felicidade.2018
+WHERE Country_or_region = 'Brazil' 
+OR Country_or_region = 'India'; 
